@@ -1,0 +1,58 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://xamarin.com/schemas/2014/forms"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:d="http://xamarin.com/schemas/2014/forms/design"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             x:Class="PhotosClient.MainPage"
+             NavigationPage.HasNavigationBar="False"
+             >
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackLayout>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Text="URL: "/>
+                <Label Grid.Column="1" x:Name="serverName"/>
+            </Grid>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Entry Grid.Column="0" x:Name="URL" Placeholder="IP address of local server"/>
+                <Button Grid.Column="1" x:Name="deleteServer" Clicked="Delete_Clicked" Text="X"></Button>
+            </Grid>
+            <StackLayout Orientation="Horizontal">
+                <Button x:Name="newServer" Clicked="Add_Clicked" Text="+"></Button>
+
+                <StackLayout Orientation="Horizontal" x:Name="servers">
+                    <Button x:Name="Mom" Clicked="Mom_Clicked" Text="Mom"></Button>
+                    <Button x:Name="Dad" Clicked="Dad_Clicked" Text="Dad"></Button>
+                </StackLayout>
+            </StackLayout>
+            <Label x:Name="StatusLabel"/>
+
+        </StackLayout>
+        <Image x:Name="PhotoImage" Grid.Row="1" />
+        <Button x:Name="CameraButton" Text="Take Photo" Grid.Row="2" Clicked="CameraButton_Clicked" />
+        <Button x:Name="ExistingButton" Text="Upload Existing Photo" Grid.Row="3" Clicked="ExistingButton_Clicked" />
+    </Grid>
+
+</ContentPage>
