@@ -43,8 +43,6 @@
                 <Button x:Name="newServer" Clicked="Add_Clicked" Text="+"></Button>
 
                 <StackLayout Orientation="Horizontal" x:Name="servers">
-                    <Button x:Name="Mom" Clicked="Mom_Clicked" Text="Mom"></Button>
-                    <Button x:Name="Dad" Clicked="Dad_Clicked" Text="Dad"></Button>
                 </StackLayout>
             </StackLayout>
             <Label x:Name="StatusLabel"/>

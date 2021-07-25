@@ -34,10 +34,12 @@ namespace PhotosClient
             LoadState();
         }
 
-        void SelectServer(HomeScroolingServer server)
+        async Task SelectServer(HomeScroolingServer server)
         {
             serverName.Text = server?.Name ?? "";
             URL.Text = server?.Address ?? "";
+
+            await RunStatusCheck();
         }
 
         async Task LoadState()
@@ -55,15 +57,15 @@ namespace PhotosClient
                         Text = server.Name
                     };
 
-                    button.Clicked += (s, a) =>
+                    button.Clicked += async (s, a) =>
                     {
-                        SelectServer(server);
+                        await SelectServer(server);
                     };
 
                     servers.Children.Add(button);
                 }
 
-                SelectServer(state.Servers.FirstOrDefault());
+                await SelectServer(state.Servers.FirstOrDefault());
             }
             catch
             {
@@ -126,83 +128,80 @@ namespace PhotosClient
                 await tcs.Task;
             }
         }
-        async Task Upload(string name, Stream source)
-        {
-            var endPoint = $"http://{URL.Text}:5002/photos";
 
-            var client = new HttpClient(
-                new HttpClientHandler()
-                {
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true
-                })
+        HttpClient NewClient
+        {
+            get
             {
-                Timeout = TimeSpan.FromSeconds(5)
-            };
+                var client = new HttpClient(
+                    new HttpClientHandler()
+                    {
+                        ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true
+                    });
+
+                return client;
+            }
+        }
+
+        void TimeoutHandler(TaskCompletionSource<bool> tcs)
+        {
+            Task.Delay(TimeSpan.FromSeconds(3)).ContinueWith(t =>
+            {
+                tcs.TrySetResult(false);
+            });
+        }
+
+        string PhotosEndpoint => $"http://{URL.Text}:5002/photos";
+
+        Task<bool> StatusCheckAsync()
+        {
+            var tcs = new TaskCompletionSource<bool>();
+            TimeoutHandler(tcs);
+
+            Task.Factory.StartNew(async () =>
+            {
+                await NewClient.GetAsync(PhotosEndpoint);
+                tcs.TrySetResult(true);
+            });
+
+            return tcs.Task;
+        }
+
+        async Task<bool> RunStatusCheck()
+        {
+            if (string.IsNullOrWhiteSpace(URL.Text))
+            {
+                await SetStatus("Please select server");
+                return false;
+            }
 
             await SetStatus("Status check ...");
 
-            /*
-            var tcs = new CancellationTokenSource();
-            Task.Run(async () =>
+            if (!await StatusCheckAsync())
             {
-                await Task.Delay(TimeSpan.FromSeconds(5));
-                tcs.Cancel();
-            });
-            */
+                await SetStatus($"Server is not reachable: {serverName.Text}");
+                return false;
+            }
 
-            var content = await client.GetStringAsync(endPoint);
-            //var resp = await client.GetAsync(endPoint, tcs.Token);
-            //var content = await resp.Content.ReadAsStringAsync();
+            await SetStatus("Server ok");
 
-            client.DefaultRequestHeaders.Add("FileName", name);
+            return true;
+        }
+
+        async Task<bool> Upload(string name, Stream source)
+        {
+            if (!await RunStatusCheck())
+                return false;
 
             await SetStatus("Uploading ...");
 
-            await client.PostAsync(endPoint, new StreamContent(source));
+            var client = NewClient;
+            client.DefaultRequestHeaders.Add("FileName", name);
+
+            await client.PostAsync(PhotosEndpoint, new StreamContent(source));
             source.Seek(0, SeekOrigin.Begin);
-        }
 
-        private async void CameraButton_Clicked(object sender, EventArgs e)
-        {
-            string path = null;
-
-            try
-            {
-                IsEnabled = false;
-                PhotoImage.Source = null;
-                await SetStatus("Waiting for image ...");
-
-                using (var photo = await CrossMedia.Current.TakePhotoAsync(
-                    new StoreCameraMediaOptions() 
-                    {
-                        CompressionQuality = 75,
-                        MaxWidthHeight = 1024
-                    }))
-                {
-                    if (photo != null)
-                    {
-                        path = photo.Path;
-
-                        await Upload(Path.GetFileName(path), photo.GetStream());
-
-                        await SetStatus("Loading preview ...");
-
-                        await LoadPreview(photo.GetStream());
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                await DisplayAlert("Error", ex.Message, "OK");
-            }
-            finally
-            {
-                await DeleteFile(path);
-                IsBusy = false;
-                IsEnabled = true;
-                //await DisplayAlert("Uploaded", "All good", "OK");
-                await SetStatus("Ready");
-            }
+            return true;
         }
 
         private async void Delete_Clicked(object sender, EventArgs e)
@@ -232,20 +231,54 @@ namespace PhotosClient
             {
                 await Navigation.PushAsync(new NavigationPage(new NewServerPage()) { Title = "Add New Server" });
             }
-            catch(Exception ex)
+            catch
             {
 
             }            
         }
 
-        private void Dad_Clicked(object sender, EventArgs e)
+        private async void CameraButton_Clicked(object sender, EventArgs e)
         {
-            URL.Text = "192.168.1.109";
-        }
+            string path = null;
 
-        private void Mom_Clicked(object sender, EventArgs e)
-        {
-            URL.Text = "192.168.1.110";
+            try
+            {
+                IsEnabled = false;
+                PhotoImage.Source = null;
+                await SetStatus("Waiting for image ...");
+
+                using (var photo = await CrossMedia.Current.TakePhotoAsync(
+                    new StoreCameraMediaOptions()
+                    {
+                        CompressionQuality = 75,
+                        MaxWidthHeight = 1024
+                    }))
+                {
+                    if (photo != null)
+                    {
+                        path = photo.Path;
+
+                        if (!await Upload(Path.GetFileName(path), photo.GetStream()))
+                            return;
+
+                        await SetStatus("Loading preview ...");
+
+                        await LoadPreview(photo.GetStream());
+                        await SetStatus("Ready");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                await DisplayAlert("Error", ex.Message, "OK");
+                await SetStatus(ex.Message);
+            }
+            finally
+            {
+                await DeleteFile(path);
+                IsBusy = false;
+                IsEnabled = true;
+            }
         }
 
         private async void ExistingButton_Clicked(object sender, EventArgs e)
@@ -267,28 +300,28 @@ namespace PhotosClient
                 {
                     foreach (var photo in photos)
                     {
-                        var path = photo.Path;
+                        using (photo)
+                        {
+                            if (!await Upload(Path.GetFileName(photo.Path), photo.GetStream()))
+                                return;
 
-                        await Upload(Path.GetFileName(path), photo.GetStream());
-
-                        await SetStatus("Loading preview ...");
-
-                        await LoadPreview(photo.GetStream());
-
-                        photo.Dispose();
+                            await SetStatus("Loading preview ...");
+                            await LoadPreview(photo.GetStream());
+                        }
                     }
+
+                    await SetStatus("Ready");
                 }
             }
             catch (Exception ex)
             {
                 await DisplayAlert("Error", ex.Message, "OK");
+                await SetStatus(ex.Message);
             }
             finally
             {
                 IsBusy = false;
                 IsEnabled = true;
-                await DisplayAlert("Uploaded", "All good", "OK");
-                await SetStatus("Ready");
             }
         }
     }
