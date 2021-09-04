@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" android:versionCode="1" android:versionName="2021.07.01" package="com.evgeny.muryshkin.homeschooling" android:installLocation="auto">
-	<uses-sdk android:minSdkVersion="21" android:targetSdkVersion="29" />
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" android:versionCode="2" android:versionName="2021.07.02" package="com.evgeny.muryshkin.homeschooling" android:installLocation="auto">
+	<uses-sdk android:minSdkVersion="21" android:targetSdkVersion="30" />
 	<application android:label="Home Schooling">
 		<provider android:name="androidx.core.content.FileProvider" android:authorities="com.evgeny.muryshkin.homeschooling.fileprovider" android:exported="false" android:grantUriPermissions="true">
 			<meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths"></meta-data>
